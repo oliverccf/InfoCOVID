@@ -104,7 +104,7 @@ class PersonCOVIDInfoRouterController {
     }
 
     @DeleteMapping("/personCOVIDInfos/{id}")
-    fun deletePersonCOVIDInfos(@PathVariable id: String, reponse: HttpResponse<String>): Mono<String> {
+    fun deletePersonCOVIDInfos(@PathVariable id: String): Mono<String> {
         return if (Strings.isNotEmpty(id)) {
             personCOVIDInfoRepository.deleteById(id).map {
                 Mono.just(EXCLUSAO_REALIZADA_COM_SUCESSO)
