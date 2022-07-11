@@ -10,19 +10,13 @@ import org.apache.logging.log4j.util.Strings
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
-import org.springframework.http.server.reactive.ServerHttpRequest
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.switchIfEmpty
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
-import java.nio.charset.Charset
 import java.util.*
-import java.util.stream.Collector
-import java.util.stream.Collectors
 
 @RestController
 class PersonCOVIDInfoRouterController {
