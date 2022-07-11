@@ -8,7 +8,7 @@ import javax.mail.internet.InternetAddress
 
 
 @Throws(Exception::class)
-fun checkCPF(cpf: String) {
+fun checkCPF(cpf: String?) {
     try {
         val validator = CPFValidator()
         validator.assertValid(cpf)
@@ -18,7 +18,7 @@ fun checkCPF(cpf: String) {
 }
 
 @Throws(Exception::class)
-fun checkEmail(email: String) {
+fun checkEmail(email: String?) {
     try {
         val emailAddr = InternetAddress(email)
         emailAddr.validate()
@@ -28,7 +28,7 @@ fun checkEmail(email: String) {
 }
 
 @Throws(Exception::class)
-fun checkIsNullOrEmpty(campo: String, value: String) {
+fun checkIsNullOrEmpty(campo: String?, value: String?) {
     if (Strings.isEmpty(value)) {
         throw Exception("$campo não pode ser vazio")
     }

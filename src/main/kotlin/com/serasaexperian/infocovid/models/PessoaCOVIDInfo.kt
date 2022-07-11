@@ -45,15 +45,16 @@ data class PessoaCOVIDInfo(
     @Throws(Exception::class)
     fun validaCampos(): String {
       var message: String = ""
-      message += validaCPF() +
-        validaEmail() +
-        validaCampoNomeVazio()
+      message += """ 
+          ${validaCPF()}
+          ${validaEmail()} 
+          ${validaCampoNomeVazio()} """
       return message
     }
 
     private fun validaCPF(): String? {
         try {
-            checkCPF(cpf!!)
+            checkCPF(cpf)
         } catch (e: Exception) {
             return e.message
         }
@@ -62,7 +63,7 @@ data class PessoaCOVIDInfo(
 
     private fun validaEmail(): String? {
         try {
-            checkEmail(email!!)
+            checkEmail(email)
         } catch (e: Exception) {
             return e.message
         }

@@ -10,12 +10,19 @@ import org.apache.logging.log4j.util.Strings
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
+import org.springframework.http.server.reactive.ServerHttpRequest
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.switchIfEmpty
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
+import java.nio.charset.Charset
+import java.util.*
+import java.util.stream.Collector
+import java.util.stream.Collectors
 
 @RestController
 class PersonCOVIDInfoRouterController {
@@ -50,8 +57,8 @@ class PersonCOVIDInfoRouterController {
     fun postPersonCOVIDInfos(
         @PathVariable id: String,
         @Validated @RequestBody personCOVIDInfoDTO: PersonCOVIDInfoDTO
-    ): Mono<ServerResponse> {
-       return Mono.just(personCOVIDInfoDTO).map {
+    ): Mono<String> {
+        return Mono.just(personCOVIDInfoDTO).map {
             PessoaCOVIDInfo(
                 id = null,
                 cpf = it.cpf,
@@ -61,55 +68,53 @@ class PersonCOVIDInfoRouterController {
             )
 
         }.flatMap {
-            val message = it.validaCampos()
-            if (Strings.isNotEmpty(message)) {
-                ServerResponse.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(message, String::class.java)
+            val message = it.validaCampos().trim()
+            if (Strings.isEmpty(message)) {
+                personCOVIDInfoRepository.save(it).flatMap { Mono.just(INFORMACOES_GRAVADAS_COM_SUCESSO) }
+                    .switchIfEmpty { Mono.just(ERRO_INTERNO_NO_SERVIDOR) }
+            } else {
+                Mono.just(message)
             }
-
-            personCOVIDInfoRepository.save(it).flatMap { ServerResponse.ok().body(INFORMACOES_GRAVADAS_COM_SUCESSO, String::class.java) }
-                .switchIfEmpty {  ServerResponse.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ERRO_INTERNO_NO_SERVIDOR, String::class.java) }
-
-        }.switchIfEmpty { ServerResponse.ok().bodyValue(INFORMACOES_GRAVADAS_COM_SUCESSO) }
+        }.switchIfEmpty { Mono.just(INFORMACOES_GRAVADAS_COM_SUCESSO) }
 
     }
 
     @PutMapping("/personCOVIDInfos")
-    fun putPersonCOVIDInfos(@RequestBody personCOVIDInfoDTO: PersonCOVIDInfoDTO): Mono<ServerResponse> {
-        if (Strings.isNotEmpty(personCOVIDInfoDTO.id)) {
-            val personCOVIDInfo = PessoaCOVIDInfo(
+    fun putPersonCOVIDInfos(@RequestBody personCOVIDInfoDTO: PersonCOVIDInfoDTO): Mono<String> {
+        return personCOVIDInfoRepository.findById(Optional.ofNullable(personCOVIDInfoDTO.id).orElse("")).map {
+            PessoaCOVIDInfo(
                 id = personCOVIDInfoDTO.id,
                 cpf = personCOVIDInfoDTO.cpf,
                 email = personCOVIDInfoDTO.email,
                 nome = personCOVIDInfoDTO.nome,
                 vacinado = personCOVIDInfoDTO.vacinado
             )
-            val message = personCOVIDInfo.validaCampos()
-            if (Strings.isEmpty(message)) {
-                return ServerResponse.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(message, String::class.java)
+        }.flatMap {
+            val message = it.validaCampos().trim()
+            if (Strings.isEmpty(message) && Strings.isNotEmpty(it.id)) {
+                personCOVIDInfoRepository.save(it).flatMap {
+                    Mono.just(INFOMACOES_ATUALIZADAS_COM_SUCESSO)
+                }.switchIfEmpty {
+                    Mono.just(ERRO_INTERNO_NO_SERVIDOR)
+                }
+            } else {
+                Mono.just(message)
             }
-            val personCOVIDInfoUpdated = personCOVIDInfoRepository.save(personCOVIDInfo).map { it }.block()
-            if (personCOVIDInfo != personCOVIDInfoUpdated) {
-                return ServerResponse.ok().body(INFOMACOES_ATUALIZADAS_COM_SUCESSO, String::class.java)
-            }
-        }
-        return ServerResponse.badRequest().body(INVALID_ARGUMENT, String::class.java)
+        }.switchIfEmpty(Mono.just(OBJECT_NOT_FOUND))
     }
 
     @DeleteMapping("/personCOVIDInfos/{id}")
-    fun deletePersonCOVIDInfos(@PathVariable id: String): Mono<ServerResponse> {
+    fun deletePersonCOVIDInfos(@PathVariable id: String, reponse: HttpResponse<String>): Mono<String> {
         return if (Strings.isNotEmpty(id)) {
-            personCOVIDInfoRepository.deleteById(id).flatMap {
-                ServerResponse.ok().body(EXCLUSAO_REALIZADA_COM_SUCESSO, String::class.java)
-            }.switchIfEmpty(ServerResponse.status(HttpStatus.NOT_FOUND).bodyValue(OBJECT_NOT_FOUND))
+            personCOVIDInfoRepository.deleteById(id).map {
+                Mono.just(EXCLUSAO_REALIZADA_COM_SUCESSO)
+            }.flatMap { it }.switchIfEmpty(Mono.just(OBJECT_NOT_FOUND))
         } else {
-            return ServerResponse.badRequest().bodyValue(INVALID_ARGUMENT)
+            Mono.just(INVALID_ARGUMENT)
         }
     }
 
-    // Não consegui habilitar o swagger com reactive functions usando springdoc-openapi. Ver com calma depois.
+// Não consegui habilitar o swagger com reactive functions usando springdoc-openapi. Ver com calma depois.
 //    @Bean
 //    @RouterOperations(value = [RouterOperation(path = "/personCOVIDInfos", beanClass = PersonCOVIDInfoRouter::class, beanMethod = "getAll"),
 //        RouterOperation(path = "/personCOVIDInfos", beanClass = PersonCOVIDInfoHandler::class, beanMethod = "post"),
